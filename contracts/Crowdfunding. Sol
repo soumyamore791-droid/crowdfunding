@@ -1,1 +1,114 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract Crowdfunding {
+    struct Campaign {
+        address payable creator;
+        string title;
+        string description;
+        uint goal;
+        uint pledged;
+        uint32 startAt;
+        uint32 endAt;
+        bool claimed;
+    }
+
+    uint public count;
+    mapping(uint => Campaign) public campaigns;
+    mapping(uint => mapping(address => uint)) public pledgedAmount;
+
+    event Launched(
+        uint id,
+        address indexed creator,
+        string title,
+        uint goal,
+        uint32 startAt,
+        uint32 endAt
+    );
+
+    event Pledged(uint indexed id, address indexed user, uint amount);
+    event Unpledged(uint indexed id, address indexed user, uint amount);
+    event Claimed(uint indexed id);
+    event Refunded(uint indexed id, address indexed user, uint amount);
+
+    modifier onlyCreator(uint _id) {
+        require(msg.sender == campaigns[_id].creator, "Not creator");
+        _;
+    }
+
+    function launch(
+        string calldata _title,
+        string calldata _description,
+        uint _goal,
+        uint32 _startAt,
+        uint32 _endAt
+    ) external {
+        require(_startAt >= block.timestamp, "start < now");
+        require(_endAt > _startAt, "end < start");
+        require(_endAt <= block.timestamp + 90 days, "end > 90 days");
+
+        count += 1;
+        campaigns[count] = Campaign({
+            creator: payable(msg.sender),
+            title: _title,
+            description: _description,
+            goal: _goal,
+            pledged: 0,
+            startAt: _startAt,
+            endAt: _endAt,
+            claimed: false
+        });
+
+        emit Launched(count, msg.sender, _title, _goal, _startAt, _endAt);
+    }
+
+    function pledge(uint _id) external payable {
+        Campaign storage campaign = campaigns[_id];
+        require(block.timestamp >= campaign.startAt, "not started");
+        require(block.timestamp <= campaign.endAt, "ended");
+
+        campaign.pledged += msg.value;
+        pledgedAmount[_id][msg.sender] += msg.value;
+
+        emit Pledged(_id, msg.sender, msg.value);
+    }
+
+    function unpledge(uint _id, uint _amount) external {
+        Campaign storage campaign = campaigns[_id];
+        require(block.timestamp <= campaign.endAt, "ended");
+
+        uint pledged = pledgedAmount[_id][msg.sender];
+        require(pledged >= _amount, "not enough pledged");
+
+        campaign.pledged -= _amount;
+        pledgedAmount[_id][msg.sender] -= _amount;
+
+        payable(msg.sender).transfer(_amount);
+        emit Unpledged(_id, msg.sender, _amount);
+    }
+
+    function claim(uint _id) external onlyCreator(_id) {
+        Campaign storage campaign = campaigns[_id];
+        require(block.timestamp > campaign.endAt, "not ended");
+        require(campaign.pledged >= campaign.goal, "goal not met");
+        require(!campaign.claimed, "already claimed");
+
+        campaign.claimed = true;
+        campaign.creator.transfer(campaign.pledged);
+        emit Claimed(_id);
+    }
+
+    function refund(uint _id) external {
+        Campaign storage campaign = campaigns[_id];
+        require(block.timestamp > campaign.endAt, "not ended");
+        require(campaign.pledged < campaign.goal, "goal met");
+
+        uint balance = pledgedAmount[_id][msg.sender];
+        require(balance > 0, "no pledged balance");
+
+        pledgedAmount[_id][msg.sender] = 0;
+        payable(msg.sender).transfer(balance);
+        emit Refunded(_id, msg.sender, balance);
+    }
+}
 
