@@ -29,5 +29,6 @@ Campaign creators can define funding goals and deadlines, while contributors can
 - 🪙 Add ERC20 token support for pledges.
 
 ## Contract Details :0xd9145CCE52D386f254917e481eB44e9943F39138  
-<img width="1325" height="841" alt="image" src="https://github.com/user-attachments/assets/c04337d6-bac6-42eb-a106-589a3500f036" />
+<img width="1720" height="756" alt="Screenshot 2025-10-28 221734 1" src="https://github.com/user-attachments/assets/2c0c576b-c61c-4e6d-a7e6-d861c41077eb" />
+
 
